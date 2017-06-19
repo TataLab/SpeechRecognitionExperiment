@@ -104,36 +104,45 @@ def wer(ref, hyp ,debug=False):
     wer_result = round( (numSub + numDel + numIns) / (float) (len(r)), 3)
     return wer_result
 
-def playAudio(fileLocation1, fileLocation2):
+def mergeChunk(bufferA, bufferB):
+    res = [''] * len(bufferA) * 2
+    res[::4]  = bufferA[::2]
+    res[1::4] = bufferA[1::2]
+    res[2::4] = bufferB[::2]
+    res[3::4] = bufferB[1::2]
+    return ''.join(res)
+
+
+def playAudio(fileLocs, numTalkers):
+
 
     #open a wav format music
-    f1 = wave.open(fileLocation1,"rb");
-    f2 = wave.open(fileLocation2,"rb");
+    files = [];
+
+    for fileLoc in fileLocs:
+        files.append(wave.open(fileLoc, "rb"));
+
     #instantiate PyAudio
     p = pyaudio.PyAudio();
     #open stream
-    stream = p.open(format = p.get_format_from_width(f1.getsampwidth()),
-                    channels = 2,
-                    rate = f1.getframerate(),
+    stream = p.open(format = p.get_format_from_width(files[0].getsampwidth()),
+                    channels = numTalkers,
+                    rate = files[0].getframerate(),
                     output = True);
 
     #read data
-    data1 = f1.readframes(chunk);
-    data2 = f2.readframes(chunk);
+    data = [];
+
+    for i in range(len(fileLocs)):
+        data.append(files[i].readframes(chunk));
+
 
     #play stream
-    while data1 and data2 and (len(data1) == len(data2)):
+    while data[0] and data[1] and (len(data[0]) == len(data[1])):
+        stream.write(mergeChunk(data[0], data[1]));
 
-        res = [''] * len(data1) * 2
-        res[::4]  = data1[::2]
-        res[1::4] = data1[1::2]
-        res[2::4] = data2[::2]
-        res[3::4] = data2[1::2]
-
-        stream.write(''.join(res));
-
-        data1 = f1.readframes(chunk);
-        data2 = f2.readframes(chunk);
+        for i in range(len(fileLocs)):
+            data[i] = files[i].readframes(chunk);
 
     #stop stream
     stream.stop_stream();
@@ -167,7 +176,7 @@ yarp.Network.connect("/speech", "/recognizeresult");
 
 index = 1;
 
-playAudio(audioFiles[index], audioFiles[index]);
+playAudio([audioFiles[index], audioFiles[index]], 2);
 
 #playAudio("../pnnc-v2/speakers/PNM080/audio/PNM080_01-01.wav", "../pnnc-v2/speakers/NCF011/audio/NCF011_01-02.wav");
 #playAudio("../pnnc-v2/speakers/NCF011/audio/NCF011_01-02.wav", "../pnnc-v2/speakers/NCF011/audio/NCF011_01-02.wav");
@@ -188,4 +197,5 @@ while True:
 
          index += 1;
          #playAudio(audioFiles[index], audioFiles[index]);
-         playAudio(audioFiles[randint(0, len(audioFiles))], audioFiles[index]);
+         playAudio([audioFiles[randint(0, len(audioFiles))], audioFiles[index]], 2);
+         #playAudio(audioFiles[randint(0, len(audioFiles))], audioFiles[index]);
