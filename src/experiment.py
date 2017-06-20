@@ -112,9 +112,32 @@ def mergeChunk(bufferA, bufferB):
     res[3::4] = bufferB[1::2]
     return ''.join(res)
 
+def mergeChunks(list):
+    if len(list) == 1:
+        return list[0];
+
+    res = [];
+
+    for i in range(len(list)-1):
+        if i%2 == 1:
+            continue;
+        res.append(mergeChunk(list[i], list[i+1]));
+
+
+    return mergeChunks(res)
+
+def check(list):
+    for i in range(len(list)-1):
+        if not list[i] or not list[i+1]:
+            return False;
+
+        if len(list[i]) != len(list[i+1]):
+            return False;
+
+    return True;
+
 
 def playAudio(fileLocs, numTalkers):
-
 
     #open a wav format music
     files = [];
@@ -136,18 +159,22 @@ def playAudio(fileLocs, numTalkers):
     for i in range(len(fileLocs)):
         data.append(files[i].readframes(chunk));
 
-
+    ind=0;
     #play stream
-    while data[0] and data[1] and (len(data[0]) == len(data[1])):
-        stream.write(mergeChunk(data[0], data[1]));
+    while check(data):
+        ind+=1;
+        stream.write(mergeChunks(data));
 
         for i in range(len(fileLocs)):
             data[i] = files[i].readframes(chunk);
 
+        if ind>10000:
+            break;
+
+
     #stop stream
     stream.stop_stream();
     stream.close();
-
     #close PyAudio
     p.terminate()
 
@@ -176,10 +203,16 @@ yarp.Network.connect("/speech", "/recognizeresult");
 
 index = 1;
 
-playAudio([audioFiles[index], audioFiles[index]], 2);
+numChannels = 2;
 
-#playAudio("../pnnc-v2/speakers/PNM080/audio/PNM080_01-01.wav", "../pnnc-v2/speakers/NCF011/audio/NCF011_01-02.wav");
-#playAudio("../pnnc-v2/speakers/NCF011/audio/NCF011_01-02.wav", "../pnnc-v2/speakers/NCF011/audio/NCF011_01-02.wav");
+audioList = [];
+
+for i in range(numChannels-1):
+ audioList.append(audioFiles[randint(0, len(audioFiles))]);
+
+audioList.append(audioFiles[index]);
+
+playAudio(audioList, numChannels);
 
 while True:
      speech = p.read(False);
@@ -191,11 +224,15 @@ while True:
 
          file.close()
 
-
-
-         print "RESULT: " + speech.toString()+ ", CORRECT: " + correct + ", WER: " + str(wer(correct, speech.toString()));
+         print "INDEX: " + str(index) + ", RESULT: " + speech.toString()+ ", CORRECT: " + correct + ", WER: " + str(wer(correct, speech.toString()));
 
          index += 1;
-         #playAudio(audioFiles[index], audioFiles[index]);
-         playAudio([audioFiles[randint(0, len(audioFiles))], audioFiles[index]], 2);
-         #playAudio(audioFiles[randint(0, len(audioFiles))], audioFiles[index]);
+
+         audioList = [];
+
+         for i in range(numChannels-1):
+             audioList.append(audioFiles[randint(0, len(audioFiles))]);
+
+         audioList.append(audioFiles[index]);
+
+         playAudio(audioList, numChannels);
