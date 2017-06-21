@@ -18,7 +18,8 @@ ps_decoder_t *ps;
 cmd_ln_t *config;
 
 
-int16 data[16005];
+int16 data[48005];
+int16 dataResampled[48005];
 uint8 utt_started, in_speech;
 int32 k;
 char const *hyp;
@@ -45,7 +46,7 @@ int main(int argc, char *argv[]) {
   speechPort.open("/speech");
 
   p.open("/receivewav");
-  Network::connect("/grabber", "/receivewav");
+  Network::connect("/MarkoAudioStream", "/receivewav");
 
   while(1){
 
@@ -80,7 +81,20 @@ const char * recognize(Network& yarp, BufferedPort<Sound>& p){
           for (int i=0; i<num_samples; i++)
             data[i] = s->get(i,0);
 
-          ps_process_raw(ps, data, num_samples, FALSE, FALSE);
+
+
+          int ind=0;
+
+          for(int i=0; i<48000; i+=3) {
+            dataResampled[ind] = data[i];
+            dataResampled[ind] += data[i+1];
+            dataResampled[ind] += data[i+2];
+            dataResampled[ind]/=3;
+            ind++;
+          }
+          //std::cout << ind << std::endl;
+
+          ps_process_raw(ps, dataResampled, num_samples/3, FALSE, FALSE);
 
           in_speech = ps_get_in_speech(ps);
           if (in_speech && !utt_started) {
